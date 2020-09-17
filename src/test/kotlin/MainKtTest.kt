@@ -1,4 +1,4 @@
-import org.junit.Ignore
+
 import org.junit.Test
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -25,13 +25,12 @@ class MainKtTest {
         }
     }
 
-    @Ignore("this test checks that work for the same observable is re-invoked, still thinking about this")
     @Test
     fun rxSuspend5() {
         val atomic = AtomicInteger(0)
-        val observable = rxSuspend { atomic.getAndIncrement() }
+        val observable = rxSuspend { atomic.get() }
         repeat(1_000) {
-            observable.test().assertValue(atomic.get())
+            observable.test().assertValue(atomic.getAndIncrement())
         }
     }
 
@@ -39,7 +38,7 @@ class MainKtTest {
     fun rxSuspend6() {
         val atomic = AtomicInteger(0)
         val get = atomic.get()
-        val observable = rxSuspend { atomic.getAndIncrement() }
+        val observable = rxSuspend(recycleResult = true) { atomic.getAndIncrement() }
         repeat(1_000) {
             observable.test().assertValue(get)
         }

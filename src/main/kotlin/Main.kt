@@ -3,7 +3,8 @@ import rx.Observable
 
 inline fun <T : Any> rxSuspend(
     coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob()),
-    crossinline function: suspend CoroutineScope.() -> T,
+    recycleResult: Boolean = false,
+    crossinline function: suspend CoroutineScope.() -> T
 ): Observable<T> {
 
     val supervisorJob = SupervisorJob()
@@ -15,7 +16,7 @@ inline fun <T : Any> rxSuspend(
     return Observable.fromCallable {
         runBlocking { deferred.await() }
     }.doOnRequest {
-        if (deferred.isCompleted) {
+        if (deferred.isCompleted && !recycleResult) {
             deferred = makeDeferred()
         }
         deferred.start()
