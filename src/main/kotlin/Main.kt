@@ -1,18 +1,23 @@
-
 import kotlinx.coroutines.*
 import rx.Observable
 
 inline fun <T : Any> rxSuspend(
-    job: CompletableJob = Job(),
-    supervisorJob: CompletableJob = SupervisorJob(job),
-    scope: CoroutineScope = CoroutineScope(job),
-    crossinline function: suspend CoroutineScope.() -> T
+    coroutineScope: CoroutineScope = CoroutineScope(SupervisorJob()),
+    crossinline function: suspend CoroutineScope.() -> T,
 ): Observable<T> {
 
-    val deferred: Deferred<T> = scope.async { function() }
-    return Observable.defer {
-        Observable.just(runBlocking { deferred.await() })
+    val supervisorJob = SupervisorJob()
+    val makeDeferred: () -> Deferred<T> = {
+        (coroutineScope + supervisorJob + Job()).async { function() }
+    }
+    var deferred: Deferred<T> = makeDeferred()
+
+    return Observable.fromCallable {
+        runBlocking { deferred.await() }
     }.doOnRequest {
+        if (deferred.isCompleted) {
+            deferred = makeDeferred()
+        }
         deferred.start()
     }.doOnSubscribe {
         deferred.start()
